@@ -4,6 +4,8 @@ from typing import Any, Dict, List, Optional, Union
 import torch
 from torch.distributed import ProcessGroup
 
+
+from vllm import utils
 from vllm.model_executor.parallel_utils import cupy_utils
 from vllm.model_executor.parallel_utils.parallel_state import (
     get_tensor_model_parallel_rank,
@@ -24,7 +26,7 @@ def tensor_model_parallel_all_reduce(input_: torch.Tensor) -> torch.Tensor:
     and GPU topology.
 
     TLDR: always assume this function modifies its input, but use the return
-    value as the output. 
+    value as the output.
     """
     # Bypass the function if we are using only 1 GPU.
     if get_tensor_model_parallel_world_size() == 1:
@@ -146,6 +148,9 @@ def broadcast_tensor_dict(
     group: Optional[ProcessGroup] = None,
 ) -> Dict[Any, Union[torch.Tensor, Any]]:
     """Broadcast the input tensor dictionary."""
+    if utils.is_neuron():
+        return
+
     group = group or torch.distributed.group.WORLD
     ranks = torch.distributed.get_process_group_ranks(group)
     assert src in ranks, f"Invalid src rank ({src})"

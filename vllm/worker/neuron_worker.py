@@ -139,9 +139,9 @@ class Worker:
                 "blocks_to_swap_out": blocks_to_swap_out,
                 "blocks_to_copy": blocks_to_copy,
             }
-            broadcast_tensor_dict(data, src=0)
+            # broadcast_tensor_dict(data, src=0)
         else:
-            data = broadcast_tensor_dict(src=0)
+            # data = broadcast_tensor_dict(src=0)
             num_seq_groups = data["num_seq_groups"]
             blocks_to_swap_in = data["blocks_to_swap_in"]
             blocks_to_swap_out = data["blocks_to_swap_out"]
@@ -164,28 +164,29 @@ def _init_distributed_environment(
     distributed_init_method: Optional[str] = None,
     distributed_backend: Optional[str] = None,
 ) -> None:
-    """Initialize the distributed environment."""
-    if torch.distributed.is_initialized():
-        torch_world_size = torch.distributed.get_world_size()
-        if torch_world_size != parallel_config.world_size:
-            raise RuntimeError(
-                "torch.distributed is already initialized but the torch world "
-                "size does not match parallel_config.world_size "
-                f"({torch_world_size} vs. {parallel_config.world_size}).")
-    elif not distributed_init_method:
-        raise ValueError(
-            "distributed_init_method must be set if torch.distributed "
-            "is not already initialized")
-    else:
-        distributed_backend = distributed_backend if distributed_backend else "nccl"
-        torch.distributed.init_process_group(
-            backend=distributed_backend,
-            world_size=parallel_config.world_size,
-            rank=rank,
-            init_method=distributed_init_method,
-        )
+    # """Initialize the distributed environment."""
+    # if torch.distributed.is_initialized():
+    #     torch_world_size = torch.distributed.get_world_size()
+    #     if torch_world_size != parallel_config.world_size:
+    #         raise RuntimeError(
+    #             "torch.distributed is already initialized but the torch world "
+    #             "size does not match parallel_config.world_size "
+    #             f"({torch_world_size} vs. {parallel_config.world_size}).")
+    # elif not distributed_init_method:
+    #     raise ValueError(
+    #         "distributed_init_method must be set if torch.distributed "
+    #         "is not already initialized")
+    # else:
+    #     distributed_backend = distributed_backend if distributed_backend else "nccl"
+    #     torch.distributed.init_process_group(
+    #         backend=distributed_backend,
+    #         world_size=parallel_config.world_size,
+    #         rank=rank,
+    #         init_method=distributed_init_method,
+    #     )
 
-    # A small all_reduce for warmup.
-    torch.distributed.all_reduce(torch.zeros(1))
-    ensure_model_parallel_initialized(parallel_config.tensor_parallel_size,
-                                      parallel_config.pipeline_parallel_size)
+    # # A small all_reduce for warmup.
+    # torch.distributed.all_reduce(torch.zeros(1))
+    # ensure_model_parallel_initialized(parallel_config.tensor_parallel_size,
+    #                                   parallel_config.pipeline_parallel_size)
+    pass

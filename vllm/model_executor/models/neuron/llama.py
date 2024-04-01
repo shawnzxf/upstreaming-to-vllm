@@ -14,6 +14,9 @@ from vllm.sequence import SamplerOutput
 KVCache = Tuple[torch.Tensor, torch.Tensor]
 
 
+
+
+
 class LlamaForCausalLM(nn.Module):
 
     def __init__(
@@ -34,23 +37,28 @@ class LlamaForCausalLM(nn.Module):
         kv_caches: List[KVCache],
         input_metadata: InputMetadata,
     ) -> torch.Tensor:
+
+
         with torch.inference_mode():
-            block_size = self.model.context_buckets[-1]
+            block_size = self.model.config.n_positions
             if input_metadata.is_prompt:
                 seq_ids = input_metadata.slot_mapping[:, 0] // block_size
             else:
                 seq_ids = input_metadata.block_tables
-            logits = self.model(input_ids,
-                                cache_ids=positions,
-                                start_ids=seq_ids.flatten())
-        return logits
+
+
+            output = self.model(input_ids,
+                                attention_mask=None,
+                                position_ids=positions,
+                                seq_ids=seq_ids.flatten() - 1)
+        return output.logits[:, -1, :]
 
     def sample(
         self,
         hidden_states: torch.Tensor,
         sampling_metadata: SamplingMetadata,
     ) -> Optional[SamplerOutput]:
-        next_tokens = self.sampler(self.model.chkpt_model.lm_head,
+        next_tokens = self.sampler(None,
                                    hidden_states, sampling_metadata)
         return next_tokens
 
@@ -60,20 +68,86 @@ class LlamaForCausalLM(nn.Module):
                      load_format: str = "auto",
                      revision: Optional[str] = None,
                      **kwargs):
-        from transformers_neuronx.llama.model import LlamaForSampling
 
-        split_model_dir = f"{model_name_or_path}-split"
-        if os.path.isdir(os.path.join(model_name_or_path,
-                                      "pytorch_model.bin")):
-            split_model_dir = model_name_or_path
-        elif not os.path.exists(f"{model_name_or_path}-split"):
-            from transformers.models.llama import LlamaForCausalLM
-            from transformers_neuronx.module import save_pretrained_split
+        from llama2.neuron_modeling_llama import NeuronLlamaForCausalLM, NeuronLlamaConfig, NeuronLlamaModel, preshard_hook_fn
+        from neuronx_distributed.parallel_layers.checkpointing import _invoke_preshard_hook
 
-            hf_model = LlamaForCausalLM.from_pretrained(model_name_or_path,
-                                                        low_cpu_mem_usage=True)
-            save_pretrained_split(hf_model, f"{model_name_or_path}-split")
 
-        self.model = LlamaForSampling.from_pretrained(split_model_dir,
-                                                      **kwargs)
-        self.model.to_neuron()
+        dtype_map = {
+            "f16": torch.float16,
+            "f32": torch.float32,
+            "bf16": torch.bfloat16,
+        }
+
+        from transformers import LlamaForCausalLM as LlamaForCausalLMHF
+        from transformers import AutoConfig
+        config = NeuronLlamaConfig.from_pretrained(model_name_or_path)
+
+        config.tp_degree = kwargs["tp_degree"]
+        config.max_batch_size = kwargs["batch_size"]
+        # TODO: add a conversion of dtype
+        config.torch_dtype = dtype_map[kwargs["amp"]]
+        config.n_positions = kwargs["n_positions"][-1]
+        config.tkg_batch_size = kwargs["batch_size"]
+        config.ctx_batch_size = 1
+        config.attn_cls = 'NeuronLlamaAttention'
+        config.padding_side = "right"
+        config.is_continuous_batching = True
+
+        print(config)
+
+        import gc
+
+        cpu_mode = os.environ.get("NXD_CPU", None)
+
+
+        if os.environ.get("NXD_DEBUG", None):
+            from imp import reload
+
+            import logging
+
+            reload(logging)
+            logging.basicConfig(level=logging.DEBUG)
+
+
+        hf_model =  LlamaForCausalLMHF.from_pretrained(model_name_or_path)
+        if cpu_mode is not None:
+            config.tp_degree = 1
+
+            model_sd = hf_model.model.state_dict()
+            lm_head_sd = hf_model.lm_head.state_dict()
+            model_sd["lm_head.weight"] = lm_head_sd["weight"]
+            state_dict = model_sd
+
+            llama_model = NeuronLlamaModel(config)
+            _invoke_preshard_hook(preshard_hook_fn, llama_model, state_dict)
+
+            self.model = NeuronLlamaForCausalLM("", config)
+            config.batch_size = config.ctx_batch_size
+            config.n_active_tokens = config.n_positions
+
+
+            llama_model_ctx = NeuronLlamaModel.from_pretrained(None, config=config, state_dict=state_dict)
+            llama_model_ctx.lm_head = hf_model.lm_head
+
+            config.batch_size = config.tkg_batch_size
+            config.n_active_tokens = 1
+            llama_model_tkg = NeuronLlamaModel.from_pretrained(None, config=config, state_dict=state_dict)
+            llama_model_tkg.lm_head = hf_model.lm_head
+
+            self.model.context_encoding_model.model = llama_model_ctx
+            self.model.token_generation_model.model = llama_model_tkg
+        else:
+            # Save the model state dict. This will be used
+            # load the state in each parallel shard when tracing
+            model_save_path = os.path.join(model_name_or_path, "model.pt")
+
+            model_sd = hf_model.model.state_dict()
+            lm_head_sd = hf_model.lm_head.state_dict()
+            model_sd["lm_head.weight"] = lm_head_sd["weight"]
+            torch.save(model_sd, model_save_path)
+            del model_sd
+            gc.collect()
+
+            self.model = NeuronLlamaForCausalLM.from_pretrained(model_save_path, config)
+            self.model.to_neuron()
