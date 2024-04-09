@@ -79,6 +79,7 @@ class LlamaForCausalLM(nn.Module):
             "bf16": torch.bfloat16,
         }
 
+
         from transformers import LlamaForCausalLM as LlamaForCausalLMHF
         from transformers import AutoConfig
         config = NeuronLlamaConfig.from_pretrained(model_name_or_path)
@@ -88,6 +89,7 @@ class LlamaForCausalLM(nn.Module):
         # TODO: add a conversion of dtype
         config.torch_dtype = dtype_map[kwargs["amp"]]
         config.n_positions = kwargs["n_positions"][-1]
+        config.buckets = [config.n_positions]
         config.tkg_batch_size = kwargs["batch_size"]
         config.ctx_batch_size = 1
         config.attn_cls = 'NeuronLlamaAttention'
@@ -138,16 +140,5 @@ class LlamaForCausalLM(nn.Module):
             self.model.context_encoding_model.model = llama_model_ctx
             self.model.token_generation_model.model = llama_model_tkg
         else:
-            # Save the model state dict. This will be used
-            # load the state in each parallel shard when tracing
-            model_save_path = os.path.join(model_name_or_path, "model.pt")
-
-            model_sd = hf_model.model.state_dict()
-            lm_head_sd = hf_model.lm_head.state_dict()
-            model_sd["lm_head.weight"] = lm_head_sd["weight"]
-            torch.save(model_sd, model_save_path)
-            del model_sd
-            gc.collect()
-
-            self.model = NeuronLlamaForCausalLM.from_pretrained(model_save_path, config)
+            self.model = NeuronLlamaForCausalLM.from_pretrained(model_name_or_path, config)
             self.model.to_neuron()

@@ -83,10 +83,13 @@ def run_vllm(
         seed=seed,
         trust_remote_code=trust_remote_code,
         dtype=dtype,
-        max_model_len=max_model_len,
         enforce_eager=enforce_eager,
         kv_cache_dtype=kv_cache_dtype,
-        device=device,
+        device="neuron",
+        disable_log_stats=False, # Why do we need this?
+        max_num_seqs=256,
+        max_model_len=1024,
+        block_size=1024
     )
 
     # Add the requests to the engine.
@@ -225,7 +228,7 @@ def main(args: argparse.Namespace):
     total_num_tokens = sum(prompt_len + output_len
                            for _, prompt_len, output_len in requests)
     print(f"Throughput: {len(requests) / elapsed_time:.2f} requests/s, "
-          f"{total_num_tokens / elapsed_time:.2f} tokens/s")
+          f"{total_num_tokens / elapsed_time:.2f} tokens/s", f"Total tokens: {total_num_tokens}", f"Total requeest: {len(requests)}", f"Total time: {elapsed_time:.2f}")
 
 
 if __name__ == "__main__":
