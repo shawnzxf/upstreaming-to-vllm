@@ -1,7 +1,5 @@
 sentencepiece  # Required for LLaMA tokenizer.
 numpy
-transformers-neuronx >= 0.9.0
-torch-neuronx >= 2.1.0
 neuronx-cc
 fastapi
 uvicorn[standard]

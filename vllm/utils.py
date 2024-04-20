@@ -120,10 +120,10 @@ def is_hip() -> bool:
 
 def is_neuron() -> bool:
     try:
-        import transformers_neuronx
+        import neuronx_distributed
     except ImportError:
-        transformers_neuronx = None
-    return transformers_neuronx is not None
+        neuronx_distributed = None
+    return neuronx_distributed is not None
 
 
 def get_max_shared_memory_bytes(gpu: int = 0) -> int:

@@ -73,12 +73,6 @@ class LlamaForCausalLM(nn.Module):
         from neuronx_distributed.parallel_layers.checkpointing import _invoke_preshard_hook
 
 
-        dtype_map = {
-            "f16": torch.float16,
-            "f32": torch.float32,
-            "bf16": torch.bfloat16,
-        }
-
 
         from transformers import LlamaForCausalLM as LlamaForCausalLMHF
         from transformers import AutoConfig
@@ -86,8 +80,7 @@ class LlamaForCausalLM(nn.Module):
 
         config.tp_degree = kwargs["tp_degree"]
         config.max_batch_size = kwargs["batch_size"]
-        # TODO: add a conversion of dtype
-        config.torch_dtype = dtype_map[kwargs["amp"]]
+        config.torch_dtype = kwargs["amp"]
         config.n_positions = kwargs["n_positions"][-1]
         config.buckets = [config.n_positions]
         config.tkg_batch_size = kwargs["batch_size"]
@@ -98,10 +91,8 @@ class LlamaForCausalLM(nn.Module):
 
         print(config)
 
-        import gc
 
         cpu_mode = os.environ.get("NXD_CPU", None)
-
 
         if os.environ.get("NXD_DEBUG", None):
             from imp import reload

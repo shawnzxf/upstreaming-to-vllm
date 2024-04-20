@@ -14,7 +14,7 @@ if __name__ == "__main__":
 
     # Create an LLM.
     llm = LLM(
-        model="TinyLLama-v0",
+        model="openlm-research/open_llama_3b",#  "TheBloke/Llama-2-7B-Chat-fp16",
         tensor_parallel_size=8,
         max_num_seqs=4,
         # The max_model_len and block_size arguments are required to be same as max sequence length,
@@ -23,7 +23,7 @@ if __name__ == "__main__":
         # TODO(liangfu): Support paged-attention in transformers-neuronx.
         max_model_len=64,
         block_size=64,
-        dtype="float32",
+        dtype="bfloat16",
         # The device can be automatically detected when AWS Neuron SDK is installed.
         # The device argument can be either unspecified for automated detection, or explicitly assigned.
         device="neuron")
