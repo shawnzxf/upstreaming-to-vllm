@@ -8,12 +8,13 @@ prompts = [
     "The future of AI is",
 ]
 # Create a sampling params object.
-sampling_params = SamplingParams(temperature=0.8, top_p=0.95)
+sampling_params = SamplingParams(top_k=1)
 
 # Create an LLM.
 llm = LLM(
     model="openlm-research/open_llama_3b",
     max_num_seqs=8,
+    tensor_parallel_size=64,
     # The max_model_len and block_size arguments are required to be same as max sequence length,
     # when targeting neuron device. Currently, this is a known limitation in continuous batching
     # support in transformers-neuronx.

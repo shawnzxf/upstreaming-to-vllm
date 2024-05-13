@@ -528,34 +528,35 @@ class ModelRunner:
                 "lora_requests": lora_requests,
                 "lora_mapping": lora_mapping,
             }
-            broadcast_tensor_dict(metadata_dict, src=0)
+            # broadcast_tensor_dict(metadata_dict, src=0)
         else:
-            metadata_dict = broadcast_tensor_dict(src=0)
-            input_tokens = metadata_dict["input_tokens"]
-            input_positions = metadata_dict["input_positions"]
-            lora_mapping = metadata_dict["lora_mapping"]
-            lora_requests = metadata_dict["lora_requests"]
-            input_metadata = InputMetadata(
-                is_prompt=metadata_dict["is_prompt"],
-                slot_mapping=metadata_dict["slot_mapping"],
-                prompt_lens=metadata_dict["prompt_lens"],
-                max_seq_len=metadata_dict["max_seq_len"],
-                start_loc=metadata_dict["start_loc"],
-                max_context_len=metadata_dict["max_context_len"],
-                context_lens=metadata_dict["context_lens"],
-                block_tables=metadata_dict["block_tables"],
-                use_cuda_graph=metadata_dict["use_cuda_graph"],
-                kv_cache_dtype=metadata_dict["kv_cache_dtype"],
-            )
-            sampling_metadata = SamplingMetadata(
-                seq_groups=None,
-                seq_data=None,
-                prompt_lens=None,
-                selected_token_indices=metadata_dict["selected_token_indices"],
-                categorized_sample_indices=None,
-                generators=None,
-                perform_sampling=False,
-            )
+            pass
+            # metadata_dict = broadcast_tensor_dict(src=0)
+            # input_tokens = metadata_dict["input_tokens"]
+            # input_positions = metadata_dict["input_positions"]
+            # lora_mapping = metadata_dict["lora_mapping"]
+            # lora_requests = metadata_dict["lora_requests"]
+            # input_metadata = InputMetadata(
+            #     is_prompt=metadata_dict["is_prompt"],
+            #     slot_mapping=metadata_dict["slot_mapping"],
+            #     prompt_lens=metadata_dict["prompt_lens"],
+            #     max_seq_len=metadata_dict["max_seq_len"],
+            #     start_loc=metadata_dict["start_loc"],
+            #     max_context_len=metadata_dict["max_context_len"],
+            #     context_lens=metadata_dict["context_lens"],
+            #     block_tables=metadata_dict["block_tables"],
+            #     use_cuda_graph=metadata_dict["use_cuda_graph"],
+            #     kv_cache_dtype=metadata_dict["kv_cache_dtype"],
+            # )
+            # sampling_metadata = SamplingMetadata(
+            #     seq_groups=None,
+            #     seq_data=None,
+            #     prompt_lens=None,
+            #     selected_token_indices=metadata_dict["selected_token_indices"],
+            #     categorized_sample_indices=None,
+            #     generators=None,
+            #     perform_sampling=False,
+            # )
 
         return (input_tokens, input_positions, input_metadata,
                 sampling_metadata, lora_requests, lora_mapping)

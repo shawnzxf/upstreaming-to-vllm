@@ -60,10 +60,10 @@ class Worker:
 
     def init_model(self) -> None:
         # Initialize the distributed environment.
-        _init_distributed_environment(self.parallel_config,
-                                      self.rank,
-                                      self.distributed_init_method,
-                                      distributed_backend="gloo")
+        # _init_distributed_environment(self.parallel_config,
+        #                               self.rank,
+        #                               self.distributed_init_method,
+        #                               distributed_backend="gloo")
 
         # Initialize the model.
         set_random_seed(self.model_config.seed)
@@ -139,13 +139,14 @@ class Worker:
                 "blocks_to_swap_out": blocks_to_swap_out,
                 "blocks_to_copy": blocks_to_copy,
             }
-            broadcast_tensor_dict(data, src=0)
+            # broadcast_tensor_dict(data, src=0)
         else:
-            data = broadcast_tensor_dict(src=0)
-            num_seq_groups = data["num_seq_groups"]
-            blocks_to_swap_in = data["blocks_to_swap_in"]
-            blocks_to_swap_out = data["blocks_to_swap_out"]
-            blocks_to_copy = data["blocks_to_copy"]
+            pass
+            # data = broadcast_tensor_dict(src=0)
+            # num_seq_groups = data["num_seq_groups"]
+            # blocks_to_swap_in = data["blocks_to_swap_in"]
+            # blocks_to_swap_out = data["blocks_to_swap_out"]
+            # blocks_to_copy = data["blocks_to_copy"]
 
         self.cache_swap(blocks_to_swap_in, blocks_to_swap_out, blocks_to_copy)
 
