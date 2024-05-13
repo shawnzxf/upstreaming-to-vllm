@@ -4,7 +4,7 @@ from typing import List, Optional, Tuple
 
 import torch
 from torch import nn
-from transformers import LlamaConfig
+from transformers import LlamaConfig, LlamaForCausalLM
 
 from vllm.model_executor.input_metadata import InputMetadata
 from vllm.model_executor.layers.sampler import Sampler
@@ -73,7 +73,6 @@ class LlamaForCausalLM(nn.Module):
         from neuronx_distributed.parallel_layers.checkpointing import _invoke_preshard_hook
 
 
-
         from transformers import LlamaForCausalLM as LlamaForCausalLMHF
         from transformers import AutoConfig
         config = NeuronLlamaConfig.from_pretrained(model_name_or_path)
@@ -91,7 +90,6 @@ class LlamaForCausalLM(nn.Module):
 
         print(config)
 
-
         cpu_mode = os.environ.get("NXD_CPU", None)
 
         if os.environ.get("NXD_DEBUG", None):
@@ -103,9 +101,21 @@ class LlamaForCausalLM(nn.Module):
             logging.basicConfig(level=logging.DEBUG)
 
 
-        hf_model =  LlamaForCausalLMHF.from_pretrained(model_name_or_path)
+        # need to save to local if the model paht doesn't exist
+        if not os.path.exists(model_name_or_path):
+
+            model = LlamaForCausalLMHF.from_pretrained(model_name_or_path)
+
+            saved_path = os.path.join("local-models", model_name_or_path)
+            model.save_pretrained(saved_path)
+
+            model_name_or_path = saved_path
+
         if cpu_mode is not None:
             config.tp_degree = 1
+
+
+            hf_model =  LlamaForCausalLMHF.from_pretrained(model_name_or_path)
 
             model_sd = hf_model.model.state_dict()
             lm_head_sd = hf_model.lm_head.state_dict()
