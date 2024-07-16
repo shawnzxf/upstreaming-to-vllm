@@ -11,10 +11,6 @@ from vllm.model_executor.layers.sampler import Sampler
 from vllm.model_executor.sampling_metadata import SamplingMetadata
 from vllm.sequence import SamplerOutput
 
-import sys
-sys.path.append("/home/ubuntu/dev/NeuronxDistributed/examples/inference/")
-
-
 KVCache = Tuple[torch.Tensor, torch.Tensor]
 
 

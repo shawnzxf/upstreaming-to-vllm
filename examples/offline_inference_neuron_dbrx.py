@@ -19,8 +19,7 @@ if __name__ == "__main__":
         max_num_seqs=4,
         # The max_model_len and block_size arguments are required to be same as max sequence length,
         # when targeting neuron device. Currently, this is a known limitation in continuous batching
-        # support in transformers-neuronx.
-        # TODO(liangfu): Support paged-attention in transformers-neuronx.
+        # support in neuronx-distributed.
         max_model_len=64,
         block_size=64,
         dtype="bfloat16",
