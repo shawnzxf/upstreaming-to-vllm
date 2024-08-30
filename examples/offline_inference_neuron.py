@@ -1,4 +1,8 @@
-import os
+import os, torch
+os.environ['NEURONX_DUMP_TO'] = os.path.join(os.getcwd(),"_compile_cache")
+os.environ["NEURON_CC_FLAGS"]= " -O1 "
+os.environ["NEURON_RT_DBG_EMBEDDING_UPDATE_BOUND_CHECK"] = "0"
+os.environ["NEURON_RT_DBG_INDIRECT_MEMCPY_BOUND_CHECK"] = "0"
 
 from vllm import LLM, SamplingParams
 
@@ -12,27 +16,30 @@ prompts = [
     "Hello, my name is",
     "The president of the United States is",
     "The capital of France is",
+    "It is not the critic who counts; not the man who points out how the strong man stumbles, or where the doer of deeds could have done them better. The credit belongs to the man who is actually in the arena, whose face is marred by dust and sweat and blood; who strives valiantly; who errs, who comes short again and again, because there is no effort without error and shortcoming; but who does actually strive to do the deeds; who knows great enthusiasms, the great devotions; who spends himself in a worthy cause; who at the best knows",
     "The future of AI is",
+    "Hello, my name can",
+    "The president of the United States can",
+    "The capital of France can",
+    "The future of AI can",
 ]
 # Create a sampling params object.
-sampling_params = SamplingParams(temperature=0.8, top_p=0.95)
+sampling_params = SamplingParams()
 
 # Create an LLM.
 llm = LLM(
-    model="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
-    max_num_seqs=8,
-    # The max_model_len and block_size arguments are required to be same as
-    # max sequence length when targeting neuron device.
-    # Currently, this is a known limitation in continuous batching support
-    # in transformers-neuronx.
-    # TODO(liangfu): Support paged-attention in transformers-neuronx.
-    max_model_len=2048,
-    block_size=2048,
-    # The device can be automatically detected when AWS Neuron SDK is installed.
-    # The device argument can be either unspecified for automated detection,
-    # or explicitly assigned.
-    device="neuron",
-    tensor_parallel_size=2)
+    model="nickypro/tinyllama-15M",
+    # model="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+    # model="openlm-research/open_llama_3b",
+    tensor_parallel_size=2,
+    max_num_seqs=4,
+
+    max_model_len=256,
+    max_num_batched_tokens=64,
+    enable_chunked_prefill=True,
+
+    block_size=32,
+    gpu_memory_utilization=0.0005)
 # Generate texts from the prompts. The output is a list of RequestOutput objects
 # that contain the prompt, generated text, and other information.
 outputs = llm.generate(prompts, sampling_params)
