@@ -124,10 +124,10 @@ def get_attn_backend(
             ROCmFlashAttentionBackend)
         return ROCmFlashAttentionBackend
     elif backend == _Backend.NEURON_FLASH:
-        logger.info("Using NeuronFlashAttention backend.")
-        from vllm.attention.backends.neuron_flash_attn import (  # noqa: F401
-            NeuronFlashAttentionBackend)
-        return NeuronFlashAttentionBackend
+        logger.info("Using Neuron Attention backend.")
+        from vllm.attention.backends.neuron import (  # noqa: F401
+            NeuronAttentionBackend)
+        return NeuronAttentionBackend
     elif backend == _Backend.TORCH_SDPA:
         assert is_cpu(), RuntimeError(
             "Torch SDPA backend is only used for the CPU device.")

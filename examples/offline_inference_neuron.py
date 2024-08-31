@@ -6,11 +6,6 @@ os.environ["NEURON_RT_DBG_INDIRECT_MEMCPY_BOUND_CHECK"] = "0"
 
 from vllm import LLM, SamplingParams
 
-# creates XLA hlo graphs for all the context length buckets.
-os.environ['NEURON_CONTEXT_LENGTH_BUCKETS'] = "128,512,1024,2048"
-# creates XLA hlo graphs for all the token gen buckets.
-os.environ['NEURON_TOKEN_GEN_BUCKETS'] = "128,512,1024,2048"
-
 # Sample prompts.
 prompts = [
     "Hello, my name is",
