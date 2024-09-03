@@ -590,6 +590,7 @@ class NeuronModelRunner(ModelRunnerBase[ModelInputForNeuron]):
         return ModelInputForNeuron(input_tokens=model_input.input_tokens,
                                    input_positions=model_input.input_positions,
                                    input_block_ids=model_input.input_block_ids,
+                                   attn_metadata=model_input.attn_metadata,
                                    sampling_metadata=sampling_metadata)
 
     @torch.inference_mode()

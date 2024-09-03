@@ -54,10 +54,8 @@ class NeuronCasualLM(nn.Module):
         input_metadata,
     ) -> torch.Tensor:
         print(f"input_ids={input_ids.flatten()}, cache_ids={positions.flatten()}, slot_mapping={input_metadata.slot_mapping.flatten()}, prompt_lens={input_metadata.seq_lens_tensor}, block_tables={input_metadata.block_tables.flatten()}")
-        import pdb
-        pdb.set_trace()
-        logits = self.model(input_ids,
-                            cache_ids=positions,
+        logits = self.model(input_ids.reshape(1, -1),
+                            cache_ids=positions.reshape(1, -1),
                             start_ids=input_metadata.slot_mapping,
                             input_metadata=input_metadata)
         return logits
@@ -122,6 +120,7 @@ def get_neuron_model(model_config: ModelConfig,
     continuous_batching_config = ContinuousBatchingConfig(
         max_model_len=model_config.max_model_len,
         max_num_seqs=scheduler_config.max_num_seqs,
+        enable_chunked_prefill=True,
         optimized_paged_attention=True)
     neuron_config = NeuronConfig(
         fuse_qkv=True,

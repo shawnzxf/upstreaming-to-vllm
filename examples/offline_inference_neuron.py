@@ -1,6 +1,7 @@
 import os, torch
 os.environ['NEURONX_DUMP_TO'] = os.path.join(os.getcwd(),"_compile_cache")
-os.environ["NEURON_CC_FLAGS"]= " -O1 "
+os.environ["NEURON_CC_FLAGS"]= " -O1 --internal-enable-dge-levels=vector_dynamic_offsets "
+# os.environ["NEURON_CC_FLAGS"]= " -O1 "
 os.environ["NEURON_RT_DBG_EMBEDDING_UPDATE_BOUND_CHECK"] = "0"
 os.environ["NEURON_RT_DBG_INDIRECT_MEMCPY_BOUND_CHECK"] = "0"
 
@@ -32,6 +33,10 @@ llm = LLM(
     max_model_len=256,
     max_num_batched_tokens=64,
     enable_chunked_prefill=True,
+
+    # max_model_len=256,
+    # max_num_batched_tokens=256,
+    # enable_chunked_prefill=False,
 
     block_size=32,
     gpu_memory_utilization=0.0005)
