@@ -8,10 +8,11 @@ import torch.nn as nn
 import transformers
 from transformers import PretrainedConfig
 
-from vllm.config import ModelConfig, ParallelConfig, SchedulerConfig
+from vllm.config import ModelConfig, ParallelConfig, SchedulerConfig, CacheConfig
 from vllm.model_executor.layers.logits_processor import LogitsProcessor
 from vllm.model_executor.layers.sampler import Sampler, SamplerOutput
 from vllm.model_executor.sampling_metadata import SamplingMetadata
+from vllm.worker.cache_engine import CacheEngine
 
 TORCH_DTYPE_TO_NEURON_AMP = {
     "auto": "f32",
@@ -53,6 +54,7 @@ class NeuronCasualLM(nn.Module):
         positions: torch.Tensor,
         input_metadata,
     ) -> torch.Tensor:
+        print(f"input_metadata={input_metadata}")
         print(f"input_ids={input_ids.flatten()}, cache_ids={positions.flatten()}, slot_mapping={input_metadata.slot_mapping.flatten()}, prompt_lens={input_metadata.seq_lens_tensor}, block_tables={input_metadata.block_tables.flatten()}")
         logits = self.model(input_ids.reshape(1, -1),
                             cache_ids=positions.reshape(1, -1),
@@ -70,6 +72,11 @@ class NeuronCasualLM(nn.Module):
         logits: torch.Tensor,
         sampling_metadata: SamplingMetadata,
     ) -> Optional[SamplerOutput]:
+        print(logits.shape)
+        print(torch.min(logits, dim=1).values.shape)
+        print("logits", logits - torch.min(logits, dim=1, keepdim=True).values)
+        logits_subtract = logits - torch.min(logits, dim=1, keepdim=True).values
+        print("logits max", torch.max(logits_subtract, dim=1))
         next_tokens = self.sampler(logits, sampling_metadata)
         return next_tokens
 
@@ -105,10 +112,27 @@ def _get_buckets(env: str, default_value: List[int]) -> List[int]:
     buckets_list = list(buckets_int)
     return buckets_list
 
+def determine_num_available_blocks(cache_config, model_config, parallel_config) -> Tuple[int, int]:
+    """Determine the number of available KV blocks.
+
+    Swapping is not yet supported, so always return num_cpu_blocks=0.
+    """
+    total_gpu_memory = 16 * 1e9 # 16GiB per NeuronCore
+    cache_block_size = CacheEngine.get_cache_block_size(cache_config, model_config, parallel_config)
+    num_gpu_blocks = int((total_gpu_memory * cache_config.gpu_memory_utilization) // cache_block_size)
+    num_gpu_blocks = max(num_gpu_blocks, 0)
+    assert num_gpu_blocks > 0, f"insufficient K/V cache space."
+
+    # Swap not yet supported with Neuron backend.
+    num_cpu_blocks = 0
+
+    return num_gpu_blocks, num_cpu_blocks
+
 
 def get_neuron_model(model_config: ModelConfig,
                      parallel_config: ParallelConfig,
-                     scheduler_config: SchedulerConfig) -> nn.Module:
+                     scheduler_config: SchedulerConfig, 
+                     cache_config: CacheConfig) -> nn.Module:
     from transformers_neuronx import constants
     from transformers_neuronx.config import (ContinuousBatchingConfig, QuantizationConfig,
                                              NeuronConfig)
@@ -130,10 +154,35 @@ def get_neuron_model(model_config: ModelConfig,
         attention_layout=constants.Layout.BSH,
         continuous_batching=continuous_batching_config)
 
+    # Need to init cache engine before load_weights for correct 
+    # operation.
+
+    # TODO: currently this happens here and also later. Ideally
+    # we need to update tnx code to make sure we can call init 
+    # after the model load.
+    num_gpu_blocks, num_cpu_blocks = (determine_num_available_blocks(cache_config, model_config, parallel_config))
+
+    if cache_config.num_gpu_blocks_override is not None:
+        num_gpu_blocks_override = cache_config.num_gpu_blocks_override
+        num_gpu_blocks = num_gpu_blocks_override
+
+    cache_config.num_gpu_blocks = num_gpu_blocks
+    cache_config.num_cpu_blocks = num_cpu_blocks
+
+    assert cache_config.num_gpu_blocks is not None
+    neuron_config.continuous_batching.init_cache_engine(
+        block_size=cache_config.block_size,
+        num_blocks=cache_config.num_gpu_blocks
+    )
+
     context_length_estimates = _get_buckets("NEURON_CONTEXT_LENGTH_BUCKETS",
                                             [scheduler_config.max_model_len])
     n_positions = _get_buckets("NEURON_TOKEN_GEN_BUCKETS",
                                [scheduler_config.max_model_len])
+
+    # Uncomment below to test bucketing for chunked prefill
+    # n_positions = [n_positions[0]//4, n_positions[0]//2, n_positions[0]]
+    # context_length_estimates = [context_length_estimates[0]//4, context_length_estimates[0]//2, context_length_estimates[0]]
 
     # Load the weights from the cached or downloaded files.
     model.load_weights(model_config.model,

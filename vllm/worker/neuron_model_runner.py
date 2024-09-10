@@ -527,7 +527,8 @@ class NeuronModelRunner(ModelRunnerBase[ModelInputForNeuron]):
     def load_model(self) -> None:
         self.model = get_neuron_model(self.model_config,
                                       parallel_config=self.parallel_config,
-                                      scheduler_config=self.scheduler_config)
+                                      scheduler_config=self.scheduler_config,
+                                      cache_config=self.cache_config)
 
     def compile_model(self) -> None:
         self.model.model.to_neuron()
@@ -604,7 +605,6 @@ class NeuronModelRunner(ModelRunnerBase[ModelInputForNeuron]):
         if num_steps > 1:
             raise ValueError(
                 "NeuronModelRunner does not support multi-step execution.")
-
         hidden_states = self.model(
             input_ids=model_input.input_tokens,
             positions=model_input.input_positions,
@@ -614,12 +614,19 @@ class NeuronModelRunner(ModelRunnerBase[ModelInputForNeuron]):
         # Compute the logits.
         logits = self.model.compute_logits(hidden_states,
                                            model_input.sampling_metadata)
-
+        print("model_input.sampling_metadata", model_input.sampling_metadata)
         # Sample the next token.
+        # Before sampling we only keep tokens that are to be sampled (to check if logic is actually correct or not)
+        seqs_to_sample = []
+        for idx, seq_group in enumerate(model_input.sampling_metadata.seq_groups):
+            if seq_group.sample_indices:
+                seqs_to_sample += [idx]
+        logits = logits[seqs_to_sample, :]
         output = self.model.sample(
             logits=logits,
             sampling_metadata=model_input.sampling_metadata,
         )
+        print("output token: ", output)
         return [output]
 
     @property
