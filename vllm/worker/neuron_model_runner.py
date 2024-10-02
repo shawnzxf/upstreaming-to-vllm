@@ -614,7 +614,7 @@ class NeuronModelRunner(ModelRunnerBase[ModelInputForNeuron]):
         # Compute the logits.
         logits = self.model.compute_logits(hidden_states,
                                            model_input.sampling_metadata)
-        print("model_input.sampling_metadata", model_input.sampling_metadata)
+        # print("model_input.sampling_metadata", model_input.sampling_metadata)
         # Sample the next token.
         # Before sampling we only keep tokens that are to be sampled (to check if logic is actually correct or not)
         seqs_to_sample = []
@@ -626,7 +626,7 @@ class NeuronModelRunner(ModelRunnerBase[ModelInputForNeuron]):
             logits=logits,
             sampling_metadata=model_input.sampling_metadata,
         )
-        print("output token: ", output)
+        # print("output token: ", output)
         return [output]
 
     @property

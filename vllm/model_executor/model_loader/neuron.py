@@ -54,8 +54,21 @@ class NeuronCasualLM(nn.Module):
         positions: torch.Tensor,
         input_metadata,
     ) -> torch.Tensor:
-        print(f"input_metadata={input_metadata}")
-        print(f"input_ids={input_ids.flatten()}, cache_ids={positions.flatten()}, slot_mapping={input_metadata.slot_mapping.flatten()}, prompt_lens={input_metadata.seq_lens_tensor}, block_tables={input_metadata.block_tables.flatten()}")
+        print()
+        print()
+        print(f"## input_ids")
+        print(input_ids.flatten())
+        print(f"## cache_ids")
+        print(positions.flatten())
+        print(f"## slot_mapping")
+        print(input_metadata.slot_mapping.flatten())
+        print(f"## prompt_lens")
+        print(input_metadata.seq_lens_tensor)
+        print(f"## block_tables")
+        print(input_metadata.block_tables.flatten())
+        print(f"## input_metadata")
+        print(input_metadata)
+        # print(f"input_ids={input_ids.flatten()}, cache_ids={positions.flatten()}, slot_mapping={input_metadata.slot_mapping.flatten()}, prompt_lens={input_metadata.seq_lens_tensor}, block_tables={input_metadata.block_tables.flatten()}")
         logits = self.model(input_ids.reshape(1, -1),
                             cache_ids=positions.reshape(1, -1),
                             start_ids=input_metadata.slot_mapping,
@@ -72,12 +85,15 @@ class NeuronCasualLM(nn.Module):
         logits: torch.Tensor,
         sampling_metadata: SamplingMetadata,
     ) -> Optional[SamplerOutput]:
+        print(f"## logits shape")
         print(logits.shape)
-        print(torch.min(logits, dim=1).values.shape)
-        print("logits", logits - torch.min(logits, dim=1, keepdim=True).values)
-        logits_subtract = logits - torch.min(logits, dim=1, keepdim=True).values
-        print("logits max", torch.max(logits_subtract, dim=1))
+        # print(torch.min(logits, dim=1).values.shape)
+        # print("logits", logits - torch.min(logits, dim=1, keepdim=True).values)
+        # logits_subtract = logits - torch.min(logits, dim=1, keepdim=True).values
+        # print("logits max", torch.max(logits_subtract, dim=1))
         next_tokens = self.sampler(logits, sampling_metadata)
+        print(f"## output token")
+        print(next_tokens)
         return next_tokens
 
     def load_weights(self, model_name_or_path: str, **kwargs):
