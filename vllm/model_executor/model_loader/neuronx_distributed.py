@@ -113,8 +113,11 @@ class NeuronCasualLM(nn.Module):
             neuron_config, load_config=load_pretrained_config(model_name_or_path)
         )
         self.model = neuronx_model_cls(model_name_or_path, config)
-        compiled_model_path = os.path.join(model_name_or_path,
-            f"neuron-compiled-artifacts/{hashlib.md5(config.to_json_string().encode('utf-8')).hexdigest()}/")
+        if os.getenv("NEURON_COMPILED_ARTIFACTS") is not None:
+            compiled_model_path = os.getenv("NEURON_COMPILED_ARTIFACTS")
+        else:
+            compiled_model_path = os.path.join(model_name_or_path,
+                f"neuron-compiled-artifacts/{hashlib.md5(config.to_json_string().encode('utf-8')).hexdigest()}/")
         try:
             self.model.load(compiled_model_path)
         except ValueError:
@@ -171,6 +174,8 @@ def _get_default_neuron_config(model_config: ModelConfig,
         batch_size=1,
         max_context_length=scheduler_config.max_num_batched_tokens,
         seq_len=scheduler_config.max_model_len,
+        sequence_parallel_enabled=True,
+        fused_qkv=True,
 
         is_paged_attention=True,
         pa_num_blocks=num_gpu_blocks,
@@ -180,9 +185,6 @@ def _get_default_neuron_config(model_config: ModelConfig,
         # max_num_seqs * max_blocks_per_seq = 8*8=64
         cf_num_active_blocks=scheduler_config.max_num_seqs * max_blocks_per_seq,
 
-        enable_bucketing=False,
-        is_continuous_batching=False,
-        quantized=False,
         torch_dtype=TORCH_DTYPE_TO_NEURON_AMP[model_config.dtype],
         padding_side="right"
     )
