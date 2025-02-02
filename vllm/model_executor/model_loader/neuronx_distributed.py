@@ -55,8 +55,8 @@ class NeuronCasualLM(nn.Module):
         positions: torch.Tensor,
         input_metadata,
     ) -> torch.Tensor:
-        print()
-        print()
+        # print()
+        # print()
         # print(f"## input_ids")
         # print(input_ids.flatten())
         # print(f"## cache_ids")
@@ -75,8 +75,8 @@ class NeuronCasualLM(nn.Module):
             position_ids=positions.reshape(1, -1).long(),
             slot_mapping=input_metadata.slot_mapping.long(), 
             block_table=input_metadata.block_tables.long(),
-            prompt_lens=input_metadata.seq_lens_tensor.long(),
-            context_lens=input_metadata.context_lens.long(),
+            full_context_lens=input_metadata.seq_lens_tensor.long(),
+            computed_context_lens=input_metadata.context_lens.long(),
         )
         return output.logits[0, :, :]
 
@@ -90,15 +90,15 @@ class NeuronCasualLM(nn.Module):
         logits: torch.Tensor,
         sampling_metadata: SamplingMetadata,
     ) -> Optional[SamplerOutput]:
-        print(f"## logits shape")
-        print(logits.shape)
+        # print(f"## logits shape")
+        # print(logits.shape)
         # print(torch.min(logits, dim=1).values.shape)
         # print("logits", logits - torch.min(logits, dim=1, keepdim=True).values)
         # logits_subtract = logits - torch.min(logits, dim=1, keepdim=True).values
         # print("logits max", torch.max(logits_subtract, dim=1))
         next_tokens = self.sampler(logits, sampling_metadata)
-        print(f"## output token")
-        print(next_tokens)
+        # print(f"## output token")
+        # print(next_tokens)
         return next_tokens
 
     def load_weights(self, model_name_or_path: str, **kwargs):
@@ -177,13 +177,13 @@ def _get_default_neuron_config(model_config: ModelConfig,
         sequence_parallel_enabled=True,
         fused_qkv=True,
 
-        is_paged_attention=True,
+        is_block_kv_layout=True,
         pa_num_blocks=num_gpu_blocks,
         pa_block_size=cache_config.block_size,
         is_chunked_prefill=True,
-        cf_max_num_seqs=scheduler_config.max_num_seqs,
+        cp_max_num_seqs=scheduler_config.max_num_seqs,
         # max_num_seqs * max_blocks_per_seq = 8*8=64
-        cf_num_active_blocks=scheduler_config.max_num_seqs * max_blocks_per_seq,
+        cp_num_active_blocks=scheduler_config.max_num_seqs * max_blocks_per_seq,
 
         torch_dtype=TORCH_DTYPE_TO_NEURON_AMP[model_config.dtype],
         padding_side="right"
