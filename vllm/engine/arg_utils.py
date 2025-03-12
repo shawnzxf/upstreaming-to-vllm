@@ -740,6 +740,12 @@ class EngineArgs:
             default=EngineArgs.disable_async_output_proc,
             help="Disable async output processing. This may result in "
             "lower performance.")
+      
+        parser.add_argument(
+            '--override-neuron-config',
+            type=json.loads,
+            default={},
+            help="override or set neuron device configuration.")
         return parser
 
     @classmethod
