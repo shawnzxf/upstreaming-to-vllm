@@ -14,6 +14,7 @@ from vllm.model_executor.sampling_metadata import SamplingMetadata
 from vllm.worker.cache_engine import CacheEngine
 
 from neuronx_distributed_inference.utils.hf_adapter import load_pretrained_config
+from neuronx_distributed_inference.models.config import ChunkedPrefillConfig
 
 TORCH_DTYPE_TO_NEURON_AMP = {
     "auto": "float32",
@@ -169,6 +170,11 @@ def _get_default_neuron_config(model_config: ModelConfig,
     cache_config.num_gpu_blocks = num_gpu_blocks
     cache_config.num_cpu_blocks = num_cpu_blocks
 
+    cp_config = ChunkedPrefillConfig(
+        max_num_seqs=scheduler_config.max_num_seqs,
+        num_active_blocks=scheduler_config.max_num_seqs * max_blocks_per_seq,
+    )
+
     neuron_config = dict(
         tp_degree=parallel_config.tensor_parallel_size,
         batch_size=1,
@@ -184,6 +190,7 @@ def _get_default_neuron_config(model_config: ModelConfig,
         cp_max_num_seqs=scheduler_config.max_num_seqs,
         # max_num_seqs * max_blocks_per_seq = 8*8=64
         cp_num_active_blocks=scheduler_config.max_num_seqs * max_blocks_per_seq,
+        chunked_prefill_config=cp_config,
 
         torch_dtype=TORCH_DTYPE_TO_NEURON_AMP[model_config.dtype],
         padding_side="right"
